@@ -1,7 +1,8 @@
-# require 'pry-byebug'
+require 'pry-byebug'
 
 # Puts all of the game together
 class Game
+
   @@board = {
     'O': ['◢ ', ' 1 ', ' 2 ', ' 3 '],
     'A': ['A ', '   ', '   ', '   '],
@@ -24,9 +25,9 @@ class Game
     @player_one = Player.new(gets.chomp.to_s, PLAYER_SYMBOLS[0])
     puts 'Player two (O), what should I call you?'
     @player_two = Player.new(gets.chomp.to_s, PLAYER_SYMBOLS[1])
-
+    puts
     puts "Alright, #{@player_one.name} and #{@player_two.name}, are we ready?"
-    puts 'Place your move by writing the coordinates. Eg: A1 or C3'
+    puts 'Place your symbol by writing the coordinates [eg: A1 or C3].'
   end
 
   def self.play_round
@@ -35,7 +36,7 @@ class Game
     @player_one.player_pick(gets.chomp.to_s)
     return if check_for_winner
     create_board
-    puts "#{@player_two.name}, your turn:"
+    puts "#{@player_two.name}, it's your turn:"
     @player_two.player_pick(gets.chomp.to_s)
     return if check_for_winner
   end
@@ -52,7 +53,7 @@ class Game
       CheckWinner.column_win(@@board, symbol) unless @winner
       CheckWinner.first_diagonal_win(@@board, symbol) unless @winner
       CheckWinner.second_diagonal_win(@@board, symbol) unless @winner
-      CheckWinner.is_tie?(@@board) unless @winner
+      CheckWinner.is_tie?(@@board, @winner) unless @winner
     end
     return true if @winner
 
@@ -70,14 +71,14 @@ class Game
   end
 
   def self.annouce_tie
-    puts 'It\'s a tie.'
     create_board
+    puts 'It\'s a tie!'
     play_again
   end
 
   def self.play_again
     puts
-    puts 'Play again? (enter a number to select)'
+    puts 'Play again? [enter a number make a selection]'
     puts '[1] Same players'
     puts '[2] New players'
     puts '[3] Exit'
@@ -146,9 +147,11 @@ class Player < Game
     @moves = []
   end
 
-  def player_pick(move)
-    @moves << move
+  def player_pick(move="00")
     current_move = move.split('')
+    return make_another_pick(move) if current_move.length != 2
+    return make_another_pick(move) unless !!current_move[0].match(/[abc]/i) && !!current_move[1].match(/\d/)
+    @moves << move
     row = current_move[0].upcase.to_sym
     column = current_move[1].to_i
     if @@board[row][column].strip.empty?
@@ -157,6 +160,11 @@ class Player < Game
       puts 'That square is already taken. Please input different coordinates:'
       player_pick(gets.chomp.to_s)
     end
+  end
+
+  def make_another_pick(move)
+      puts 'Invalid input. Place your symbol by writing the coordinates [eg: A1 or C3].'
+      player_pick(gets.chomp.to_s)
   end
 end
 
@@ -206,16 +214,13 @@ class CheckWinner < Game
     Game.announce_winner(symbol)
   end
 
-  def self.is_tie?(hash)
-# iterate through all 3 rows of options
-# if after strip the array length is 4 announce tie
+  def self.is_tie?(hash, winner)
     array = []
-#this doesn't work because if one row is full it goes to TIE
     hash.drop(1).each { |_key, row| array << row.slice(1..)} 
     array.flatten!
     array.collect!(&:strip)
     array.reject!(&:empty?)
-    Game.annouce_tie if array.length == 9
+    Game.annouce_tie if array.length == 9 && !winner
   end
 end
 
