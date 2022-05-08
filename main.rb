@@ -1,8 +1,5 @@
-require 'pry-byebug'
-
 # Puts all of the game together
 class Game
-
   @@board = {
     'O': ['◢ ', ' 1 ', ' 2 ', ' 3 '],
     'A': ['A ', '   ', '   ', '   '],
@@ -14,10 +11,7 @@ class Game
 
   def self.start_game
     initialize_players unless @keep_names
-    while @winner == false
-      play_round
-    end
-    # return unless @winner = true
+    play_round while @winner == false
   end
 
   def self.initialize_players
@@ -25,20 +19,32 @@ class Game
     @player_one = Player.new(gets.chomp.to_s, PLAYER_SYMBOLS[0])
     puts 'Player two (O), what should I call you?'
     @player_two = Player.new(gets.chomp.to_s, PLAYER_SYMBOLS[1])
+    describe_game
+  end
+
+  def self.describe_game
     puts
     puts "Alright, #{@player_one.name} and #{@player_two.name}, are we ready?"
     puts 'Place your symbol by writing the coordinates [eg: A1 or C3].'
   end
 
   def self.play_round
+    player_one_round
+    player_two_round
+  end
+
+  def self.player_one_round
     create_board
     puts "#{@player_one.name}, make your move:"
-    @player_one.player_pick(gets.chomp.to_s)
-    return if check_for_winner
+    @player_one.check_move_validity(gets.chomp.to_s.split(''))
+    return if check_for_winner_row_and_col
+  end
+
+  def self.player_two_round
     create_board
     puts "#{@player_two.name}, it's your turn:"
-    @player_two.player_pick(gets.chomp.to_s)
-    return if check_for_winner
+    @player_two.check_move_validity(gets.chomp.to_s.split(''))
+    return if check_for_winner_row_and_col
   end
 
   def self.create_board
@@ -47,16 +53,31 @@ class Game
     puts
   end
 
-  def self.check_for_winner
+  def self.check_for_winner_row_and_col
     PLAYER_SYMBOLS.each do |symbol|
       CheckWinner.row_win(@@board, symbol) unless @winner
       CheckWinner.column_win(@@board, symbol) unless @winner
-      CheckWinner.first_diagonal_win(@@board, symbol) unless @winner
-      CheckWinner.second_diagonal_win(@@board, symbol) unless @winner
-      CheckWinner.is_tie?(@@board, @winner) unless @winner
     end
     return true if @winner
 
+    check_for_winner_diagonals
+  end
+
+  def self.check_for_winner_diagonals
+    PLAYER_SYMBOLS.each do |symbol|
+      CheckWinner.first_diagonal_win(@@board, symbol) unless @winner
+      CheckWinner.second_diagonal_win(@@board, symbol) unless @winner
+    end
+    return true if @winner
+
+    check_for_tie
+  end
+
+  def self.check_for_tie
+    PLAYER_SYMBOLS.each do
+      CheckWinner.tie?(@@board, @winner) unless @winner
+    end
+    return true if @winner
   end
 
   def self.announce_winner(symbol)
@@ -78,44 +99,33 @@ class Game
 
   def self.play_again
     puts
-    puts 'Play again? [enter a number make a selection]'
+    puts 'Play again? [enter a number to make a selection]'
     puts '[1] Same players'
     puts '[2] New players'
     puts '[3] Exit'
     puts '-' * 20
     puts "[4] Swap symbols? #{@player_two.name} will play X and move first. "
-    puts "[5] See all of #{@player_one.name}'s moves."
-    puts "[6] See all of #{@player_two.name}'s moves."
-    answer = gets.chomp.to_s
-    if answer == '1'
+    play_again_logic(gets.chomp.to_s)
+  end
+
+  def self.play_again_logic(input)
+    case input
+    when '1'
       reset_game
       @keep_names = true
       start_game
-    elsif answer == '2'
+    when '2'
       reset_game
       start_game
-    elsif answer == '3'
+    when '3'
       exit
-    elsif answer == '4'
+    when '4'
       temp = @player_one.name
       @player_one.name = @player_two.name
       @player_two.name = temp
-
       reset_game
       @keep_names = true
       start_game
-    elsif answer == '5'
-      puts
-      puts "#{@player_one.name} has played:"
-      print @player_one.moves
-      puts
-      play_again
-    elsif answer == '6'
-      puts
-      puts "#{@player_two.name} has played:"
-      print @player_two.moves
-      puts
-      play_again
     else
       puts 'Please enter an option [eg: 1] to continue or exit.'
       play_again
@@ -124,16 +134,13 @@ class Game
 
   def self.reset_game
     @@board = {
-    'O': ['◢ ', ' 1 ', ' 2 ', ' 3 '],
-    'A': ['A ', '   ', '   ', '   '],
-    'B': ['B ', '   ', '   ', '   '],
-    'C': ['C ', '   ', '   ', '   ']
-  }
-
+      'O': ['◢ ', ' 1 ', ' 2 ', ' 3 '],
+      'A': ['A ', '   ', '   ', '   '],
+      'B': ['B ', '   ', '   ', '   '],
+      'C': ['C ', '   ', '   ', '   ']
+    }
     @winner = false
     @keep_names = false
-    @player_one.moves = []
-    @player_two.moves = []
   end
 end
 
@@ -144,83 +151,85 @@ class Player < Game
   def initialize(name, player_symbol)
     @name = name
     @player_symbol = player_symbol
-    @moves = []
   end
 
-  def player_pick(move="00")
-    current_move = move.split('')
-    return make_another_pick(move) if current_move.length != 2
-    return make_another_pick(move) unless !!current_move[0].match(/[abc]/i) && !!current_move[1].match(/\d/)
-    @moves << move
-    row = current_move[0].upcase.to_sym
-    column = current_move[1].to_i
+  def check_move_validity(move)
+    return make_another_move if move.length != 2
+    return make_another_move unless !!move[0].match(/[abc]/i) && !!move[1].match(/\d/)
+
+    convert_move(move)
+  end
+
+  def convert_move(move)
+    player_move(move[0].upcase.to_sym, move[1].to_i)
+  end
+
+  def player_move(row, column)
     if @@board[row][column].strip.empty?
       @@board[row][column] = @player_symbol
     else
       puts 'That square is already taken. Please input different coordinates:'
-      player_pick(gets.chomp.to_s)
+      check_move_validity(gets.chomp.to_s.split(''))
     end
   end
 
-  def make_another_pick(move)
-      puts 'Invalid input. Place your symbol by writing the coordinates [eg: A1 or C3].'
-      player_pick(gets.chomp.to_s)
+  def make_another_move
+    puts 'Invalid input. Place your symbol by writing the coordinates [eg: A1 or C3].'
+    check_move_validity(gets.chomp.to_s.split(''))
   end
 end
 
-# Checks for a winner (all 3 symbols on a column, row, diagonally)
+# Checks for a winner (all 3 symbols in a column, row or diagonally)
 class CheckWinner < Game
-  def self.column_win(hash, symbol)
+  def self.column_win(board, symbol)
     3.times do |idx|
-      array = []
-      hash.drop(1).each do |_key, row|
-        array << row[idx + 1]
+      matches = []
+      board.drop(1).each do |_key, row|
+        matches << row[idx + 1]
       end
-      all_symbols?(array, symbol)
+      all_symbols?(matches, symbol)
     end
   end
 
-  def self.row_win(hash, symbol)
-    hash.drop(1).each do |_key, row|
-      if row.slice(1..).all? {|sym| sym == symbol}
-        Game.announce_winner(symbol)
-      end
+  def self.row_win(board, symbol)
+    board.drop(1).each do |_key, row|
+      Game.announce_winner(symbol) if row.slice(1..).all? { |sym| sym == symbol }
     end
   end
 
-  def self.first_diagonal_win(hash, symbol)
+  def self.first_diagonal_win(board, symbol)
     i = 1
-    array = []
-    hash.drop(1).select do |_key, row|
-      array << row[i]
+    matches = []
+    board.drop(1).select do |_key, row|
+      matches << row[i]
       i += 1
     end
-    all_symbols?(array, symbol)
+    all_symbols?(matches, symbol)
   end
 
-  def self.second_diagonal_win(hash, symbol)
+  def self.second_diagonal_win(board, symbol)
     i = 3
-    array = []
-    hash.drop(1).select do |_key, row|
-      array << row[i]
+    matches = []
+    board.drop(1).select do |_key, row|
+      matches << row[i]
       i -= 1
     end
-    all_symbols?(array, symbol)
+    all_symbols?(matches, symbol)
   end
 
-  def self.all_symbols?(array, symbol)
-    return unless array.all? { |sym| sym == symbol }
+  def self.all_symbols?(matches, symbol)
+    return unless matches.all? { |sym| sym == symbol }
 
     Game.announce_winner(symbol)
   end
 
-  def self.is_tie?(hash, winner)
-    array = []
-    hash.drop(1).each { |_key, row| array << row.slice(1..)} 
-    array.flatten!
-    array.collect!(&:strip)
-    array.reject!(&:empty?)
-    Game.annouce_tie if array.length == 9 && !winner
+  def self.tie?(board, winner)
+    matches = []
+    board.drop(1).each { |_key, row| matches << row.slice(1..) }
+    matches.flatten!
+    matches.collect!(&:strip)
+    matches.reject!(&:empty?)
+    Game.annouce_tie if matches.length == 9 && !winner
   end
 end
 
