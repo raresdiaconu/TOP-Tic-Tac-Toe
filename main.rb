@@ -110,16 +110,16 @@ class Game
 
   def self.play_again_logic(input)
     case input
-    when '1'
+    when '1' # Same players
       reset_game
       @keep_names = true
       start_game
-    when '2'
+    when '2' # New players
       reset_game
       start_game
-    when '3'
+    when '3' # Exit
       exit
-    when '4'
+    when '4' # Swap symbols
       temp = @player_one.name
       @player_one.name = @player_two.name
       @player_two.name = temp
@@ -146,7 +146,7 @@ end
 
 # Creates the players, adds the player's pick to the board.
 class Player < Game
-  attr_accessor :name, :moves
+  attr_accessor :name
 
   def initialize(name, player_symbol)
     @name = name
