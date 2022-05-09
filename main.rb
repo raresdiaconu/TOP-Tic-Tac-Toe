@@ -15,7 +15,7 @@ class Game
   end
 
   def self.initialize_players
-    puts 'Player one (X), please input your name:'
+    puts 'Player one (X), input your name:'
     @player_one = Player.new(gets.chomp.to_s, PLAYER_SYMBOLS[0])
     puts 'Player two (O), what should I call you?'
     @player_two = Player.new(gets.chomp.to_s, PLAYER_SYMBOLS[1])
