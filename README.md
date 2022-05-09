@@ -1,2 +1,3 @@
 # TOP-Tic-Tac-Toe
-Building a TTT game in Ruby, as part of The Odin Project.
+
+Live version of the game x https://replit.com/@raresdiaconu/TOP-Ruby-Project-Tic-Tac-Toe
